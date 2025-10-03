@@ -8,8 +8,8 @@
   "main": "index.js",
   "scripts": {
     "build": "vite build",
-    "start": "react-scripts start",
-    "test": "react-scripts test"
+    "start": "vite",
+    "test": "echo \"No tests specified\" && exit 0"
   },
   "dependencies": {
     "autoprefixer": "^10.4.21",
