@@ -7,9 +7,11 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "build": "vite build",
-    "start": "vite",
-    "test": "echo \"No tests specified\" && exit 0"
+    "build": "cd social-spark-47-main && npm run build",
+    "start": "cd social-spark-47-main && npm start",
+    "dev": "cd social-spark-47-main && npm run dev",
+    "install-deps": "cd social-spark-47-main && npm install",
+    "test": "cd social-spark-47-main && npm test"
   },
   "dependencies": {
     "autoprefixer": "^10.4.21",
