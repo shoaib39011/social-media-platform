@@ -14,6 +14,8 @@ pipeline {
         BACKEND_PORT = '3001'
         FRONTEND_PORT = '4173'
         SPRING_PORT = '8080'
+        // Ensure npm global modules are in PATH
+        PATH = "${env.PATH};${env.USERPROFILE}\\AppData\\Roaming\\npm"
     }
     
     stages {
@@ -31,6 +33,7 @@ pipeline {
                         echo 'Installing frontend dependencies...'
                         dir('social-spark-47-main') {
                             bat 'npm install'
+                            bat 'npx vite --version'  // Verify vite is available
                         }
                     }
                 }
@@ -51,7 +54,14 @@ pipeline {
                     steps {
                         echo 'Building React frontend...'
                         dir('social-spark-47-main') {
-                            bat 'npm run build'
+                            script {
+                                try {
+                                    bat 'npx vite build'  // Use npx to ensure vite is found
+                                } catch (Exception e) {
+                                    echo 'npx vite build failed, trying npm run build...'
+                                    bat 'npm run build'
+                                }
+                            }
                         }
                     }
                     post {
