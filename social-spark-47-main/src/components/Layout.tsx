@@ -22,10 +22,17 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
 
   useEffect(() => {
+    const userEmail = localStorage.getItem('userEmail');
     const userId = localStorage.getItem('userId') || '1';
-    console.log('Layout - Fetching profile for userId:', userId);
     
-    fetch(`http://localhost:3001/api/profile?userId=${userId}`)
+    console.log('Layout - Fetching profile for email:', userEmail, 'fallback userId:', userId);
+    
+    // Fetch profile by email if available, otherwise by userId
+    const profileUrl = userEmail 
+      ? `http://localhost:3001/api/profile?email=${encodeURIComponent(userEmail)}`
+      : `http://localhost:3001/api/profile?userId=${userId}`;
+    
+    fetch(profileUrl)
       .then(res => res.json())
       .then(data => {
         console.log('Layout - Profile response:', data);
@@ -47,6 +54,8 @@ export function Layout({ children }: LayoutProps) {
   const handleLogout = () => {
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('userId');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userProfile');
     navigate('/login');
   };
 

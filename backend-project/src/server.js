@@ -14,8 +14,8 @@ app.use(express.json());
 // Test database connection
 app.get('/api/test-db', async (req, res) => {
   try {
-    const result = await pool.query('SELECT NOW()');
-    res.json({ success: true, timestamp: result.rows[0].now });
+    const [result] = await pool.execute('SELECT NOW() as now');
+    res.json({ success: true, timestamp: result[0].now });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -27,18 +27,18 @@ app.post('/api/register', async (req, res) => {
   
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    const result = await pool.query(
-      'INSERT INTO users (email, password, full_name, username, city, joined_date) VALUES ($1, $2, $3, $4, $5, NOW())',
+    const result = await pool.execute(
+      'INSERT INTO users (email, password, full_name, username, city, joined_date) VALUES (?, ?, ?, ?, ?, NOW())',
       [email, hashedPassword, fullName, username, city || null]
     );
     
     // Get the newly created user
-    const newUserResult = await pool.query(
-      'SELECT id, email, full_name, username, city FROM users WHERE email = $1',
+    const [newUserResult] = await pool.execute(
+      'SELECT id, email, full_name, username, city FROM users WHERE email = ?',
       [email]
     );
     
-    const newUser = newUserResult.rows[0];
+    const newUser = newUserResult[0];
     console.log('POST /api/register - New user created:', newUser);
     
     res.json({ 
@@ -58,16 +58,16 @@ app.post('/api/login', async (req, res) => {
   console.log('POST /api/login - email:', email);
   
   try {
-    const result = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
+    const [result] = await pool.execute(
+      'SELECT * FROM users WHERE email = ?',
       [email]
     );
     console.log('POST /api/login - Query result:', result);
     
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-    const user = result.rows[0];
+    const user = result[0];
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -97,16 +97,19 @@ app.patch('/api/profile', async (req, res) => {
   console.log('PATCH /api/profile - userId:', actualUserId, 'data:', { fullName, username, bio, city });
   
   try {
-    await pool.query(
-      'UPDATE users SET full_name = $1, username = $2, bio = $3, city = $4 WHERE id = $5',
+    await pool.execute(
+      'UPDATE users SET full_name = ?, username = ?, bio = ?, city = ? WHERE id = ?',
       [fullName, username, bio, city, actualUserId]
     );
-    const updatedUser = await pool.query(
-      'SELECT id, full_name, username, bio, city, joined_date FROM users WHERE id = $1',
+    const [updatedUser] = await pool.execute(
+      'SELECT id, full_name, username, bio, city, created_at FROM users WHERE id = ?',
       [actualUserId]
     );
-    console.log('PATCH /api/profile - Updated user:', updatedUser.rows[0]);
-    res.json({ success: true, user: updatedUser.rows[0] });
+    // Map created_at to joined_date for frontend compatibility
+    const user = { ...updatedUser[0], joined_date: updatedUser[0].created_at };
+    delete user.created_at;
+    console.log('PATCH /api/profile - Updated user:', user);
+    res.json({ success: true, user: user });
   } catch (err) {
     console.error('PATCH /api/profile - Error:', err);
     res.status(400).json({ error: err.message });
@@ -114,21 +117,38 @@ app.patch('/api/profile', async (req, res) => {
 });
 
 app.get('/api/profile', async (req, res) => {
-  const userId = req.query.userId || 1;
-  console.log('GET /api/profile - userId:', userId);
+  const userId = req.query.userId;
+  const email = req.query.email;
+  
+  console.log('GET /api/profile - userId:', userId, 'email:', email);
   
   try {
-    const result = await pool.query(
-      'SELECT id, full_name, username, bio, city, joined_date, email FROM users WHERE id = $1',
-      [userId]
-    );
+    let result;
+    if (email) {
+      // Fetch by email (for logged-in user)
+      [result] = await pool.execute(
+        'SELECT id, full_name, username, bio, city, created_at, email FROM users WHERE email = ?',
+        [email]
+      );
+    } else {
+      // Fetch by userId (for viewing other profiles)
+      const actualUserId = userId || 1;
+      [result] = await pool.execute(
+        'SELECT id, full_name, username, bio, city, created_at, email FROM users WHERE id = ?',
+        [actualUserId]
+      );
+    }
+    
     console.log('GET /api/profile - Query result:', result);
     
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
-    console.log('GET /api/profile - Returning user:', result.rows[0]);
-    res.json({ success: true, user: result.rows[0] });
+    // Map created_at to joined_date for frontend compatibility
+    const user = { ...result[0], joined_date: result[0].created_at };
+    delete user.created_at;
+    console.log('GET /api/profile - Returning user:', user);
+    res.json({ success: true, user: user });
   } catch (err) {
     console.error('GET /api/profile - Error:', err);
     res.status(500).json({ error: err.message });

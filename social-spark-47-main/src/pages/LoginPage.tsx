@@ -63,13 +63,22 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
+        // Store user session data
+        localStorage.setItem('isAuthenticated', 'true');
+        if (data.userId) {
+          localStorage.setItem('userId', String(data.userId));
+        }
+        if (data.user) {
+          localStorage.setItem('userProfile', JSON.stringify(data.user));
+          localStorage.setItem('userEmail', data.user.email); // Store email for profile fetching
+        }
+        
         toast({
           title: isLogin ? "Welcome back!" : "Account created!",
           description: isLogin
             ? "You've been logged in successfully."
             : "Your account has been created and you're now logged in.",
         });
-        localStorage.setItem('isAuthenticated', 'true');
         navigate('/');
       } else {
         toast({

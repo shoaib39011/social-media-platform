@@ -1,12 +1,13 @@
-const { Pool } = require('pg');
+const mysql = require('mysql2/promise');
 
-const pool = new Pool({
-  user: 'socialuser',
+const pool = mysql.createPool({
   host: 'localhost',
-  database: 'social_media_db',
-  password: 'socialpass',
-  port: 5432,
+  user: 'root',
+  password: 'ssa@100ssa', // Update with your MySQL password if needed
+  database: 'social_spark',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
-
 
 module.exports = pool;

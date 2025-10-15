@@ -96,10 +96,18 @@ export default function ProfilePage() {
     // fetch profile, then fetch posts for that user
     const fetchProfileAndPosts = async () => {
       try {
+        // Get the logged-in user's email from localStorage
+        const userEmail = localStorage.getItem('userEmail');
         const userId = localStorage.getItem('userId') || '1';
-        console.log('ProfilePage - Fetching profile for userId:', userId);
         
-        const profileRes = await fetch(`http://localhost:3001/api/profile?userId=${userId}`);
+        console.log('ProfilePage - Fetching profile for email:', userEmail, 'fallback userId:', userId);
+        
+        // Fetch profile by email if available, otherwise by userId
+        const profileUrl = userEmail 
+          ? `http://localhost:3001/api/profile?email=${encodeURIComponent(userEmail)}`
+          : `http://localhost:3001/api/profile?userId=${userId}`;
+          
+        const profileRes = await fetch(profileUrl);
         const profileJson = await profileRes.json();
         console.log('ProfilePage - Profile response:', profileJson);
         
