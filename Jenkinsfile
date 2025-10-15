@@ -69,6 +69,8 @@ pipeline {
                         }
                     }
                 }
+                stage('Verify Backend') {
+                    steps {
                         dir('backend-project') {
                             bat 'echo "Node.js backend verified - no compilation needed"'
                         }
