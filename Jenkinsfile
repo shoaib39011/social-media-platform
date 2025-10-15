@@ -57,11 +57,15 @@ pipeline {
                                 echo ===============================
                                 echo Building React Frontend via NPX
                                 echo ===============================
-                                call npm install
+                                call npm install --include=dev
                                 call npx vite build || (
-                                    echo "⚠️ Vite not found locally. Installing globally..."
-                                    call npm install -g vite
-                                    call vite build
+                                    echo "⚠️ Vite not found locally. Installing as devDependency..."
+                                    call npm install vite --save-dev
+                                    call npx vite build || (
+                                        echo "⚠️ Still not found, installing globally..."
+                                        call npm install -g vite
+                                        call vite build
+                                    )
                                 )
                             '''
                         }
