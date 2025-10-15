@@ -54,18 +54,24 @@ pipeline {
                     steps {
                         dir('social-spark-47-main') {
                             bat '''
-                                echo Building frontend using npx vite...
+                                echo ===============================
+                                echo Building React Frontend via NPX
+                                echo ===============================
                                 call npm install
-                                call npx vite build || (echo "Fallback: vite not found, installing globally..." && npm install -g vite && vite build)
+                                call npx vite build || (
+                                    echo "⚠️ Vite not found locally. Installing globally..."
+                                    call npm install -g vite
+                                    call vite build
+                                )
                             '''
                         }
                     }
                     post {
                         success {
-                            echo 'Frontend build completed successfully!'
+                            echo '✅ Frontend build completed successfully!'
                         }
                         failure {
-                            echo 'Frontend build failed!'
+                            echo '❌ Frontend build failed!'
                         }
                     }
                 }
