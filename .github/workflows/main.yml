@@ -1,0 +1,40 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          
+      - name: Install frontend dependencies
+        run: |
+          cd social-spark-47-main
+          npm install
+          
+      - name: Build frontend
+        run: |
+          cd social-spark-47-main
+          npm run build
+          
+      - name: Install backend dependencies
+        run: |
+          cd backend-project
+          npm install
+          
+      # - name: Test backend
+      #   run: |
+      #     cd backend-project
+      #     npm test   # Uncomment if you have tests
+
+  # Add deploy steps here for Vercel, Render, etc.

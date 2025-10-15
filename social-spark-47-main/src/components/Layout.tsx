@@ -22,10 +22,17 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/profile?userId=1')
+    const userId = localStorage.getItem('userId') || '1';
+    console.log('Layout - Fetching profile for userId:', userId);
+    
+    fetch(`http://localhost:3001/api/profile?userId=${userId}`)
       .then(res => res.json())
       .then(data => {
+        console.log('Layout - Profile response:', data);
         if (data.success) setUserProfile(data.user);
+      })
+      .catch(error => {
+        console.error('Layout - Profile fetch error:', error);
       });
   }, []);
 
@@ -39,6 +46,7 @@ export function Layout({ children }: LayoutProps) {
 
   const handleLogout = () => {
     localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('userId');
     navigate('/login');
   };
 

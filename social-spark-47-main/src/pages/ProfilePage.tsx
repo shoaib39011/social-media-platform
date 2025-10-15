@@ -96,8 +96,13 @@ export default function ProfilePage() {
     // fetch profile, then fetch posts for that user
     const fetchProfileAndPosts = async () => {
       try {
-        const profileRes = await fetch('http://localhost:3001/api/profile?userId=1');
+        const userId = localStorage.getItem('userId') || '1';
+        console.log('ProfilePage - Fetching profile for userId:', userId);
+        
+        const profileRes = await fetch(`http://localhost:3001/api/profile?userId=${userId}`);
         const profileJson = await profileRes.json();
+        console.log('ProfilePage - Profile response:', profileJson);
+        
         if (profileRes.ok && profileJson.user) {
           const user = mapApiUser(profileJson.user);
           setUserProfile(user);
@@ -113,6 +118,8 @@ export default function ProfilePage() {
           // fetch posts for this user
           const postsRes = await fetch(`http://localhost:3001/api/posts?userId=${user.id}`);
           const postsJson = await postsRes.json();
+          console.log('ProfilePage - Posts response:', postsJson);
+          
           if (postsRes.ok && Array.isArray(postsJson.posts)) {
             const mapped = postsJson.posts.map(mapApiPost);
             setUserPosts(mapped);
@@ -121,6 +128,7 @@ export default function ProfilePage() {
             setUserPosts([]);
           }
         } else {
+          console.error('ProfilePage - Failed to fetch profile:', profileJson);
           setUserProfile(null);
         }
       } catch (err) {
@@ -134,10 +142,14 @@ export default function ProfilePage() {
   const handleEditProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const userId = localStorage.getItem('userId') || '1';
+      console.log('ProfilePage - Updating profile for userId:', userId);
+      
       const res = await fetch('http://localhost:3001/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          userId: userId,
           fullName: editData.fullName,
           username: editData.username,
           bio: editData.bio,
@@ -145,6 +157,8 @@ export default function ProfilePage() {
         })
       });
       const data = await res.json();
+      console.log('ProfilePage - Update response:', data);
+      
       if (res.ok && data.user) {
         const updated = mapApiUser(data.user);
         setUserProfile(updated);

@@ -38,22 +38,26 @@ export default function HomePage() {
 
   useEffect(() => {
     // fetch currently logged in user from backend
-    fetch('http://localhost:3001/api/profile?userId=1')
+    const userId = localStorage.getItem('userId') || '1';
+    fetch(`http://localhost:3001/api/profile?userId=${userId}`)
       .then((r) => r.json())
       .then((data) => {
+        console.log('HomePage - Profile data received:', data);
         if (data?.success && data.user) {
           setUserProfile({
             id: String(data.user.id),
             avatar: data.user.avatar ?? '',
-            username: data.user.username ?? '',
-            fullName: data.user.full_name ?? data.user.fullName ?? '',
+            username: data.user.username ?? 'user',
+            fullName: data.user.full_name ?? data.user.fullName ?? 'User',
             city: data.user.city ?? '',
             email: data.user.email ?? '',
             isOnline: true,
           });
         }
       })
-      .catch(() => {});
+      .catch((error) => {
+        console.error('HomePage - Profile fetch error:', error);
+      });
   }, []);
 
   // normalize posts so each has an author object (use userProfile for matching userId)
