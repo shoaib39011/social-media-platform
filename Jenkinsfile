@@ -52,16 +52,12 @@ pipeline {
             parallel {
                 stage('Build Frontend') {
                     steps {
-                        echo 'Building React frontend...'
                         dir('social-spark-47-main') {
-                            script {
-                                try {
-                                    bat 'npx vite build'  // Use npx to ensure vite is found
-                                } catch (Exception e) {
-                                    echo 'npx vite build failed, trying npm run build...'
-                                    bat 'npm run build'
-                                }
-                            }
+                            bat '''
+                                echo Building frontend using npx vite...
+                                call npm install
+                                call npx vite build || (echo "Fallback: vite not found, installing globally..." && npm install -g vite && vite build)
+                            '''
                         }
                     }
                     post {
@@ -73,9 +69,6 @@ pipeline {
                         }
                     }
                 }
-                stage('Verify Backend') {
-                    steps {
-                        echo 'Verifying Node.js backend...'
                         dir('backend-project') {
                             bat 'echo "Node.js backend verified - no compilation needed"'
                         }
