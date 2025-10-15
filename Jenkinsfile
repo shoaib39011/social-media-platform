@@ -1,10 +1,12 @@
 pipeline {
     agent any
     
-    tools {
-        nodejs 'NodeJS-20' // Configure this in Jenkins Global Tool Configuration
-        maven 'Maven-3.9' // Configure this in Jenkins Global Tool Configuration
-    }
+    // Tools will be configured after initial setup
+    // Uncomment and configure these in Jenkins Global Tool Configuration:
+    // tools {
+    //     nodejs 'NodeJS-20'
+    //     maven 'Maven-3.9'
+    // }
     
     environment {
         // Environment variables
