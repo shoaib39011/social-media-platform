@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: social-spark-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: social_spark
+      MYSQL_USER: social_spark_user
+      MYSQL_PASSWORD: social_spark_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - social-spark-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  backend:
+    build:
+      context: ../backend-project
+      dockerfile: ../docker/Dockerfile.backend
+    container_name: social-spark-backend
+    environment:
+      NODE_ENV: production
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: social_spark_user
+      DB_PASSWORD: social_spark_password
+      DB_NAME: social_spark
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - social-spark-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../social-spark-47-main
+      dockerfile: ../docker/Dockerfile.frontend
+    container_name: social-spark-frontend
+    environment:
+      VITE_API_BASE_URL: http://localhost:3001
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - social-spark-network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  social-spark-network:
+    driver: bridge

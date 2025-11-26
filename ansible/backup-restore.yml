@@ -1,0 +1,78 @@
+---
+# Ansible playbook for backup and recovery
+- name: Backup Application Data
+  hosts: k8s_masters
+  become: no
+  gather_facts: yes
+  vars:
+    app_namespace: "social-spark"
+    backup_path: "/backups"
+    backup_date: "{{ ansible_date_time.iso8601_basic }}"
+  
+  tasks:
+    - name: Create backup directory
+      file:
+        path: "{{ backup_path }}/{{ backup_date }}"
+        state: directory
+      become: yes
+
+    - name: Export MySQL data
+      shell: |
+        kubectl exec -it -n {{ app_namespace }} $(kubectl get pods -n {{ app_namespace }} -l app=mysql -o jsonpath='{.items[0].metadata.name}') \
+        -- mysqldump -u root -p$MYSQL_ROOT_PASSWORD --all-databases > {{ backup_path }}/{{ backup_date }}/mysql_backup.sql
+      environment:
+        MYSQL_ROOT_PASSWORD: root_password_change_me
+      become: yes
+
+    - name: Export Kubernetes manifests
+      shell: |
+        kubectl get all -n {{ app_namespace }} -o yaml > {{ backup_path }}/{{ backup_date }}/k8s_backup.yaml
+
+    - name: Create archive
+      archive:
+        path: "{{ backup_path }}/{{ backup_date }}"
+        dest: "{{ backup_path }}/backup_{{ backup_date }}.tar.gz"
+        format: gz
+      become: yes
+
+    - name: Display backup location
+      debug:
+        msg: "Backup created at {{ backup_path }}/backup_{{ backup_date }}.tar.gz"
+
+---
+# Ansible playbook for restore operations
+- name: Restore Application Data
+  hosts: k8s_masters
+  become: no
+  gather_facts: yes
+  vars:
+    app_namespace: "social-spark"
+    backup_file: "/backups/backup_restore.tar.gz"
+  
+  tasks:
+    - name: Extract backup archive
+      unarchive:
+        src: "{{ backup_file }}"
+        dest: /tmp/
+        remote_src: yes
+      become: yes
+
+    - name: Get pod name for MySQL
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ app_namespace }}"
+        label_selectors:
+          - app=mysql
+      register: mysql_pod
+
+    - name: Restore MySQL data
+      shell: |
+        kubectl exec -i -n {{ app_namespace }} {{ mysql_pod.resources[0].metadata.name }} \
+        -- mysql -u root -p$MYSQL_ROOT_PASSWORD < /tmp/mysql_backup.sql
+      environment:
+        MYSQL_ROOT_PASSWORD: root_password_change_me
+      become: yes
+
+    - name: Display restore status
+      debug:
+        msg: "Data restored successfully from {{ backup_file }}"

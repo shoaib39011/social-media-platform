@@ -1,0 +1,102 @@
+---
+# Ansible playbook to deploy applications to Kubernetes
+- name: Deploy Social Spark Application to Kubernetes
+  hosts: k8s_masters
+  become: no
+  gather_facts: yes
+  vars:
+    app_namespace: "social-spark"
+    docker_registry: "your-registry"
+    docker_repository: "social-spark"
+    image_tag: "latest"
+  
+  tasks:
+    - name: Create namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ app_namespace }}"
+
+    - name: Apply MySQL PersistentVolume and PersistentVolumeClaim
+      kubernetes.core.k8s:
+        state: present
+        src: ../k8s/02-mysql-pv.yaml
+
+    - name: Apply MySQL ConfigMap and Secret
+      kubernetes.core.k8s:
+        state: present
+        src: ../k8s/03-mysql-config.yaml
+
+    - name: Apply MySQL Deployment and Service
+      kubernetes.core.k8s:
+        state: present
+        src: ../k8s/04-mysql-deployment.yaml
+
+    - name: Wait for MySQL to be ready
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        name: mysql
+        namespace: "{{ app_namespace }}"
+      register: mysql_deployment
+      until: mysql_deployment.resources[0].status.readyReplicas == mysql_deployment.resources[0].spec.replicas
+      retries: 30
+      delay: 10
+
+    - name: Apply Backend ConfigMap and Secret
+      kubernetes.core.k8s:
+        state: present
+        src: ../k8s/05-backend-config.yaml
+
+    - name: Apply Backend Deployment and Service
+      kubernetes.core.k8s:
+        state: present
+        src: ../k8s/06-backend-deployment.yaml
+
+    - name: Apply Frontend Deployment and Service
+      kubernetes.core.k8s:
+        state: present
+        src: ../k8s/07-frontend-deployment.yaml
+
+    - name: Apply Ingress
+      kubernetes.core.k8s:
+        state: present
+        src: ../k8s/08-ingress.yaml
+
+    - name: Apply Horizontal Pod Autoscaler
+      kubernetes.core.k8s:
+        state: present
+        src: ../k8s/09-hpa.yaml
+
+    - name: Apply Monitoring (Prometheus)
+      kubernetes.core.k8s:
+        state: present
+        src: ../k8s/10-monitoring.yaml
+
+    - name: Get service endpoints
+      kubernetes.core.k8s_info:
+        kind: Service
+        namespace: "{{ app_namespace }}"
+      register: services
+      until: services.resources | length > 0
+      retries: 10
+      delay: 5
+
+    - name: Display deployment summary
+      debug:
+        msg: |
+          ============================================
+          Social Spark Application Deployed Successfully
+          ============================================
+          Namespace: {{ app_namespace }}
+          Frontend Service: frontend.{{ app_namespace }}.svc.cluster.local:5173
+          Backend Service: backend.{{ app_namespace }}.svc.cluster.local:3001
+          MySQL Service: mysql.{{ app_namespace }}.svc.cluster.local:3306
+          
+          To access the application:
+          - Update your hosts file or DNS to point to the Ingress
+          - Frontend: social-spark.example.com
+          - API: api.social-spark.example.com
+          ============================================

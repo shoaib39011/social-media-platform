@@ -32,7 +32,7 @@ pipeline {
                     steps {
                         echo 'Installing frontend dependencies...'
                         dir('social-spark-47-main') {
-                            bat 'npm install'
+                            bat 'npm install --include=dev'
                             bat 'npx vite --version'  // Verify vite is available
                         }
                     }

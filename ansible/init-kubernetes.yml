@@ -1,0 +1,92 @@
+---
+# Ansible playbook to initialize Kubernetes cluster
+- name: Initialize Kubernetes Master
+  hosts: k8s_masters
+  become: yes
+  gather_facts: yes
+  vars:
+    pod_network_cidr: "10.244.0.0/16"
+    kubernetes_version: "1.28.0"
+  
+  tasks:
+    - name: Initialize Kubernetes cluster
+      shell: |
+        kubeadm init \
+          --pod-network-cidr={{ pod_network_cidr }} \
+          --kubernetes-version=v{{ kubernetes_version }}
+      register: kubeadm_init
+      failed_when: false
+      changed_when: "'already exists' not in kubeadm_init.stderr"
+
+    - name: Create .kube directory
+      file:
+        path: "{{ ansible_user_dir }}/.kube"
+        state: directory
+        mode: '0755'
+      become: no
+
+    - name: Copy admin.conf to user's kube config
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "{{ ansible_user_dir }}/.kube/config"
+        remote_src: yes
+        mode: '0644'
+
+    - name: Change kube config ownership
+      file:
+        path: "{{ ansible_user_dir }}/.kube/config"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+      become: yes
+
+    - name: Get join command
+      shell: kubeadm token create --print-join-command
+      register: join_command
+      changed_when: false
+
+    - name: Set join command as fact
+      set_fact:
+        kubernetes_join_command: "{{ join_command.stdout }}"
+
+    - name: Install Flannel CNI plugin
+      become: no
+      command: |
+        kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+      environment:
+        KUBECONFIG: "{{ ansible_user_dir }}/.kube/config"
+
+    - name: Install metrics-server
+      become: no
+      command: |
+        kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+      environment:
+        KUBECONFIG: "{{ ansible_user_dir }}/.kube/config"
+
+    - name: Display join command
+      debug:
+        msg: "{{ kubernetes_join_command }}"
+
+---
+# Ansible playbook to join worker nodes
+- name: Join Worker Nodes to Kubernetes Cluster
+  hosts: k8s_workers
+  become: yes
+  gather_facts: yes
+  vars:
+    master_host: "{{ hostvars[groups['k8s_masters'][0]]['inventory_hostname'] }}"
+  
+  tasks:
+    - name: Join node to cluster
+      shell: "{{ hostvars[groups['k8s_masters'][0]]['kubernetes_join_command'] }}"
+      register: join_result
+      failed_when: false
+      changed_when: "'already exists' not in join_result.stderr"
+
+    - name: Wait for node to be ready
+      shell: kubectl get nodes --kubeconfig=/etc/kubernetes/kubelet.conf | grep {{ inventory_hostname }}
+      retries: 30
+      delay: 10
+      until: result.rc == 0
+      register: result
+      delegate_to: "{{ groups['k8s_masters'][0] }}"
+      become: no

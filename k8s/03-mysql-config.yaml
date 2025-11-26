@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-config
+  namespace: social-spark
+data:
+  MYSQL_DATABASE: social_spark
+  MYSQL_USER: social_spark_user
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-secret
+  namespace: social-spark
+type: Opaque
+stringData:
+  MYSQL_ROOT_PASSWORD: root_password_change_me
+  MYSQL_PASSWORD: social_spark_password_change_me

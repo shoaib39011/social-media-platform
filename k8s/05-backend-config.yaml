@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: social-spark
+data:
+  NODE_ENV: production
+  DB_HOST: mysql.social-spark.svc.cluster.local
+  DB_PORT: "3306"
+  DB_NAME: social_spark
+  PORT: "3001"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backend-secret
+  namespace: social-spark
+type: Opaque
+stringData:
+  DB_USER: social_spark_user
+  DB_PASSWORD: social_spark_password_change_me

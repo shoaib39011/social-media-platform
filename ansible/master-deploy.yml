@@ -1,0 +1,63 @@
+---
+# Master playbook to orchestrate the entire deployment
+- name: Social Spark Full Stack Deployment
+  hosts: localhost
+  gather_facts: no
+  
+  vars:
+    playbook_dir: "{{ playbook_dir }}"
+  
+  tasks:
+    - name: Display deployment stages
+      debug:
+        msg: |
+          ============================================
+          Social Spark Full Stack Deployment
+          ============================================
+          
+          This playbook will execute the following stages:
+          1. Install Kubernetes dependencies on all nodes
+          2. Initialize Kubernetes master node
+          3. Join worker nodes to the cluster
+          4. Deploy the application stack
+          
+          Prerequisites:
+          - Update inventory.ini with your server IPs
+          - Ensure SSH access to all nodes
+          - Have kubectl installed on the control machine
+          
+          To run this deployment:
+          ansible-playbook master-deploy.yml
+          
+          ============================================
+
+- name: Stage 1 - Install Kubernetes
+  import_playbook: install-kubernetes.yml
+
+- name: Stage 2 - Initialize Kubernetes Cluster
+  import_playbook: init-kubernetes.yml
+
+- name: Stage 3 - Deploy Application
+  import_playbook: deploy-app.yml
+
+- name: Display Completion Message
+  hosts: localhost
+  gather_facts: no
+  
+  tasks:
+    - name: Deployment Complete
+      debug:
+        msg: |
+          ============================================
+          Deployment Completed Successfully!
+          ============================================
+          
+          Next steps:
+          1. Configure your DNS for domain access
+          2. Install cert-manager for HTTPS
+          3. Monitor application health using:
+             ansible-playbook manage-app.yml
+          4. Set up backups using:
+             ansible-playbook backup-restore.yml
+          
+          ============================================

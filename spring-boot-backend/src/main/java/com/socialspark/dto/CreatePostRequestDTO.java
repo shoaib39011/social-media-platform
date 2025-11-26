@@ -1,0 +1,13 @@
+package com.socialspark.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class CreatePostRequestDTO {
+    private String content;
+    private String imageUrl;
+}

@@ -1,0 +1,153 @@
+---
+# Ansible playbook for managing the deployed application
+- name: Scale Application
+  hosts: k8s_masters
+  become: no
+  gather_facts: yes
+  vars:
+    app_namespace: "social-spark"
+    backend_replicas: 3
+    frontend_replicas: 2
+  
+  tasks:
+    - name: Scale backend deployment
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: backend
+            namespace: "{{ app_namespace }}"
+          spec:
+            replicas: "{{ backend_replicas }}"
+
+    - name: Scale frontend deployment
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: frontend
+            namespace: "{{ app_namespace }}"
+          spec:
+            replicas: "{{ frontend_replicas }}"
+
+    - name: Display current pod status
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ app_namespace }}"
+      register: pods
+
+    - name: Show pod status
+      debug:
+        msg: "{{ pods.resources | map(attribute='metadata.name') | list }}"
+
+---
+# Update application images
+- name: Update Application Images
+  hosts: k8s_masters
+  become: no
+  gather_facts: yes
+  vars:
+    app_namespace: "social-spark"
+    docker_registry: "your-registry"
+    new_image_tag: "latest"
+  
+  tasks:
+    - name: Update backend image
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: backend
+            namespace: "{{ app_namespace }}"
+          spec:
+            template:
+              spec:
+                containers:
+                - name: backend
+                  image: "{{ docker_registry }}/social-spark-backend:{{ new_image_tag }}"
+
+    - name: Update frontend image
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: frontend
+            namespace: "{{ app_namespace }}"
+          spec:
+            template:
+              spec:
+                containers:
+                - name: frontend
+                  image: "{{ docker_registry }}/social-spark-frontend:{{ new_image_tag }}"
+
+    - name: Wait for rollout
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        name: "{{ item }}"
+        namespace: "{{ app_namespace }}"
+      register: deployment_status
+      until: deployment_status.resources[0].status.updatedReplicas == deployment_status.resources[0].spec.replicas
+      retries: 30
+      delay: 10
+      loop:
+        - backend
+        - frontend
+
+---
+# Monitor application health
+- name: Monitor Application Health
+  hosts: k8s_masters
+  become: no
+  gather_facts: yes
+  vars:
+    app_namespace: "social-spark"
+  
+  tasks:
+    - name: Get deployment status
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        namespace: "{{ app_namespace }}"
+      register: deployments
+
+    - name: Get pod status
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ app_namespace }}"
+      register: pods
+
+    - name: Get service status
+      kubernetes.core.k8s_info:
+        kind: Service
+        namespace: "{{ app_namespace }}"
+      register: services
+
+    - name: Display health report
+      debug:
+        msg: |
+          ============================================
+          Application Health Report
+          ============================================
+          
+          Deployments:
+          {% for deployment in deployments.resources %}
+          - {{ deployment.metadata.name }}: {{ deployment.status.readyReplicas }}/{{ deployment.spec.replicas }} ready
+          {% endfor %}
+          
+          Services:
+          {% for service in services.resources %}
+          - {{ service.metadata.name }}: {{ service.spec.type }}
+          {% endfor %}
+          
+          Pods:
+          {% for pod in pods.resources %}
+          - {{ pod.metadata.name }}: {{ pod.status.phase }}
+          {% endfor %}
+          ============================================
